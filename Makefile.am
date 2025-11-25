@@ -227,6 +227,11 @@ if ENABLE_SIXEL
 dist_tmux_SOURCES += image.c image-sixel.c
 endif
 
+# Enable Ruby support.
+if ENABLE_RUBY
+dist_tmux_SOURCES += cmd-run-ruby.c ruby.c
+endif
+
 # Enable Lua support.
 if WITH_LUA
 dist_tmux_SOURCES += cmd-run-lua.c luaif.c

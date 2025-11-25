@@ -35,6 +35,9 @@
 
 #include "tmux.h"
 
+#ifdef ENABLE_RUBY
+#include "ruby.h"
+#endif
 #ifdef WITH_LUA
 #include "luaif.h"
 #endif
@@ -317,6 +320,9 @@ server_send_exit(void)
 	struct client	*c, *c1;
 	struct session	*s, *s1;
 
+#ifdef ENABLE_RUBY
+	ruby_kill_server();
+#endif
 #ifdef WITH_LUA
 	luaif_finish();
 #endif

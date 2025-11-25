@@ -462,6 +462,28 @@ if test "x$enable_sixel" = xyes; then
 fi
 AM_CONDITIONAL(ENABLE_SIXEL, [test "x$enable_sixel" = xyes])
 
+# Enable Ruby support.
+AC_ARG_ENABLE(
+	ruby,
+	AS_HELP_STRING(--enable-ruby, enable Ruby support),
+	[
+	case "$enableval" in
+		yes)
+			AC_DEFINE(ENABLE_RUBY)
+			AC_CHECK_PROG([RUBYPROG],[ruby],[ruby],[no])
+			AC_ARG_VAR(
+				RUBYPROG,
+				AS_HELP_STRING(The name of the Ruby executable)
+			)
+			AC_DEFINE_UNQUOTED(RUBYPROG,["$RUBYPROG"],Ruby command)
+			;;
+		no)  ;;
+		*)   AC_MSG_WARN([ignoring unknown argument to --enable-ruby: $enableval]) ;;
+	esac
+	]
+)
+AM_CONDITIONAL(ENABLE_RUBY, [test "x$enable_ruby" = xyes])
+
 # Enable Lua support.
 AC_MSG_CHECKING([for a Lua implementation])
 AC_ARG_WITH([lua],

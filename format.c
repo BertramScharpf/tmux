@@ -33,6 +33,9 @@
 #include <unistd.h>
 
 #include "tmux.h"
+#ifdef ENABLE_RUBY
+#include "ruby.h"
+#endif
 #ifdef WITH_LUA
 #include "luaif.h"
 #endif
@@ -2316,6 +2319,17 @@ format_cb_pane_width(struct format_tree *ft)
 	return (NULL);
 }
 
+/* Callback for ruby_support. */
+static void *
+format_cb_ruby_support(__unused struct format_tree *ft)
+{
+#ifdef ENABLE_RUBY
+	return (xstrdup("1"));
+#else
+	return (NULL);
+#endif
+}
+
 /* Callback for scroll_region_lower. */
 static void *
 format_cb_scroll_region_lower(struct format_tree *ft)
@@ -3375,6 +3389,9 @@ static const struct format_table_entry format_table[] = {
 	},
 	{ "pid", FORMAT_TABLE_STRING,
 	  format_cb_pid
+	},
+	{ "ruby_support", FORMAT_TABLE_STRING,
+	  format_cb_ruby_support
 	},
 	{ "scroll_region_lower", FORMAT_TABLE_STRING,
 	  format_cb_scroll_region_lower
@@ -5605,6 +5622,11 @@ format_expand1(struct format_expand_state *es, const char *fmt)
 					const char	*cmd;
 
 					cmd = name + sch + 1;
+#ifdef ENABLE_RUBY
+					if (strncmp(name, "ruby", sch) == 0)
+						out = ruby_eval_str(cmd, NULL);
+					else
+#endif
 #ifdef WITH_LUA
 					if (strncmp(name, "lua", sch) == 0)
 						out = luaif_eval_str(cmd, NULL);

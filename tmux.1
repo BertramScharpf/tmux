@@ -6197,6 +6197,7 @@ The following variables are available, where appropriate:
 .It Li "pane_width" Ta "" Ta "Width of pane"
 .It Li "pid" Ta "" Ta "Server PID"
 .It Li "rectangle_toggle" Ta "" Ta "1 if rectangle selection is activated"
+.It Li "ruby_support" Ta "" Ta "1 if Ruby support is compiled in"
 .It Li "scroll_position" Ta "" Ta "Scroll position in copy mode"
 .It Li "scroll_region_lower" Ta "" Ta "Bottom of scroll region in pane"
 .It Li "scroll_region_upper" Ta "" Ta "Top of scroll region in pane"
@@ -7454,6 +7455,37 @@ specified by
 .Fl t
 or the current pane if omitted) after the command finishes.
 If the command fails, the exit status is also displayed.
+.Tg ruby
+.It Xo Ic run-ruby
+.Op Fl npF
+.Op Fl c Ar target-client
+.Op Fl t Ar target-pane
+.Op Ar ruby-expression
+.Xc
+.D1 Pq alias: Ic ruby
+Execute
+.Ar ruby-expression .
+.Fl n
+ignores the result,
+.Fl p
+prints it to stdout.
+If
+.Fl F
+is given, the expression
+is expanded using the rules specified in the
+.Sx FORMATS
+section.
+.Fl c
+sets the client where the output is sent to.
+.Fl t
+sets the pane where formats are expanded.
+If Ruby cannot finish its job before a timeout of 1 second,
+the evaluation will be aborted.
+The result is limited to 1024 characters.
+.Pp
+Ask the
+.Ic ruby_support
+varible to check whether Ruby invocation is compiled in.
 .Tg lua
 .It Xo Ic run-lua
 .Op Fl npF
@@ -7782,6 +7814,10 @@ flag is set).
 .It Ic %lua-result Ar string
 The result of an evaluation after a
 .Ar run-lua
+command.
+.It Ic %ruby-result Ar string
+The result of an evaluation after a
+.Ar run-ruby
 command.
 .It Ic %session-changed Ar session-id Ar name
 The client is now attached to the session with ID
