@@ -33,11 +33,16 @@
 #include <unistd.h>
 
 #include "tmux.h"
+#ifdef ENABLE_RUBY
+#include "ruby.h"
+#endif
 
 /*
  * Build a list of key-value pairs and use them to expand #{key} entries in a
  * string.
  */
+
+static unsigned int	str_has_scheme(const char *);
 
 struct format_expand_state;
 
@@ -359,6 +364,16 @@ format_job_complete(struct job *job)
 			server_status_client(fj->client);
 		fj->status = 0;
 	}
+}
+
+static unsigned int
+str_has_scheme(const char *s)
+{
+	unsigned int c;
+
+	for (c = 0; s[c] >= 'a' && s[c] <= 'z'; c++)
+		;
+	return (s[c] == ':' ? c : 0);
 }
 
 /* Find a job. */
@@ -2290,6 +2305,17 @@ format_cb_pane_width(struct format_tree *ft)
 	return (NULL);
 }
 
+/* Callback for ruby_support. */
+static void *
+format_cb_ruby_support(__unused struct format_tree *ft)
+{
+#ifdef ENABLE_RUBY
+	return (xstrdup("1"));
+#else
+	return (NULL);
+#endif
+}
+
 /* Callback for scroll_region_lower. */
 static void *
 format_cb_scroll_region_lower(struct format_tree *ft)
@@ -3346,6 +3372,9 @@ static const struct format_table_entry format_table[] = {
 	},
 	{ "pid", FORMAT_TABLE_STRING,
 	  format_cb_pid
+	},
+	{ "ruby_support", FORMAT_TABLE_STRING,
+	  format_cb_ruby_support
 	},
 	{ "scroll_region_lower", FORMAT_TABLE_STRING,
 	  format_cb_scroll_region_lower
@@ -5569,7 +5598,26 @@ format_expand1(struct format_expand_state *es, const char *fmt)
 				out = xstrdup("");
 				format_log(es, "#() is disabled");
 			} else {
-				out = format_job_get(es, name);
+				unsigned int	 sch;
+
+				sch = str_has_scheme(name);
+				if (sch > 0) {
+					const char	*cmd;
+
+					cmd = name + sch + 1;
+#ifdef ENABLE_RUBY
+					if (strncmp(name, "ruby", sch) == 0)
+						out = ruby_eval_str(cmd, NULL);
+					else
+#endif
+					if (strncmp(name, "sh",   sch) == 0)
+						out = format_job_get(es, cmd);
+					else {
+						format_log(es, "#(): unknown scheme");
+						out = xstrdup("");
+					}
+				} else
+					out = format_job_get(es, name);
 				format_log(es, "#() result: %s", out);
 			}
 			free(name);

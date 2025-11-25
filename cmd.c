@@ -87,6 +87,9 @@ extern const struct cmd_entry cmd_resize_window_entry;
 extern const struct cmd_entry cmd_respawn_pane_entry;
 extern const struct cmd_entry cmd_respawn_window_entry;
 extern const struct cmd_entry cmd_rotate_window_entry;
+#ifdef ENABLE_RUBY
+extern const struct cmd_entry cmd_run_ruby_entry;
+#endif
 extern const struct cmd_entry cmd_run_shell_entry;
 extern const struct cmd_entry cmd_save_buffer_entry;
 extern const struct cmd_entry cmd_select_layout_entry;
@@ -179,6 +182,9 @@ const struct cmd_entry *cmd_table[] = {
 	&cmd_respawn_pane_entry,
 	&cmd_respawn_window_entry,
 	&cmd_rotate_window_entry,
+#ifdef ENABLE_RUBY
+	&cmd_run_ruby_entry,
+#endif
 	&cmd_run_shell_entry,
 	&cmd_save_buffer_entry,
 	&cmd_select_layout_entry,

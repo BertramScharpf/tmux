@@ -227,6 +227,11 @@ if ENABLE_SIXEL
 dist_tmux_SOURCES += image.c image-sixel.c
 endif
 
+# Enable Ruby support.
+if ENABLE_RUBY
+dist_tmux_SOURCES += cmd-run-ruby.c ruby.c
+endif
+
 if NEED_FUZZING
 check_PROGRAMS = fuzz/input-fuzzer
 fuzz_input_fuzzer_LDFLAGS = $(FUZZING_LIBS)
