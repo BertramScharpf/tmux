@@ -462,6 +462,64 @@ if test "x$enable_sixel" = xyes; then
 fi
 AM_CONDITIONAL(ENABLE_SIXEL, [test "x$enable_sixel" = xyes])
 
+# Enable Lua support.
+AC_MSG_CHECKING([for a Lua implementation])
+AC_ARG_WITH([lua],
+	[AS_HELP_STRING([--with-lua], [select Lua implementation @<:@default=auto@:>@])], [
+		case "$withval" in
+			yes) with_lua=auto ;;
+			no)  with_lua=no ;;
+			*)   with_lua=$withval ;;
+		esac
+	], [
+		with_lua=$withval
+	])
+AS_IF([test "x$with_lua" = x], [
+	with_lua=no
+])
+AC_MSG_RESULT([$with_lua])
+AM_CONDITIONAL(WITH_LUA, [test "x$with_lua" != xno])
+
+AS_IF([test "x$with_lua" != "xno"], [
+	AS_IF([test "x$with_lua" != "xauto"], [
+		PKG_CHECK_MODULES([LUA], [$with_lua], [
+			found_lua=$with_lua
+		], [
+			AC_MSG_ERROR([Selected Lua implementation ($with_lua) not found])
+		])
+	], [
+		m4_foreach_w([luapc], [lua-5.4 lua5.4 lua54 lua-5.3 lua5.3 lua53 lua-5.2 lua5.2 lua52 lua-5.1 lua5.1 lua51 luajit lua], [
+			AS_IF([test "x$found_lua" = "x"], [
+				PKG_CHECK_MODULES([LUA], [luapc], [
+					found_lua=luapc
+				], [ : ])
+			])
+		])
+		AS_IF([test "x$found_lua" = "x"], [
+			AC_MSG_ERROR([No Lua implementation was found])
+		])
+	])
+	AC_DEFINE(WITH_LUA)
+	AC_DEFINE_UNQUOTED(TMUX_LUA_VERSION,"$found_lua")
+	AM_CPPFLAGS="$AM_CPPFLAGS $LUA_CPPFLAGS"
+	AM_CFLAGS="$AM_CFLAGS $LUA_CFLAGS"
+	CPPFLAGS="$CPPFLAGS $LUA_CPPFLAGS"
+	CFLAGS="$CFLAGS $LUA_CFLAGS"
+	LIBS="$LIBS $LUA_LIBS"
+	# The function lua_version() returns different types in different
+	# versions, if it exists at all. This is too complex to be usable.
+	# (Maybe at some point of time in the future.)
+	AC_LINK_IFELSE([AC_LANG_PROGRAM(
+		[
+			#include <lua.h>
+		],
+		[
+			lua_version( NULL);
+		])],
+		[AC_DEFINE(HAVE_LUA_VERSION)]
+	)
+])
+
 # Check for b64_ntop. If we have b64_ntop, we assume b64_pton as well.
 AC_MSG_CHECKING(for b64_ntop)
 AC_LINK_IFELSE([AC_LANG_PROGRAM(

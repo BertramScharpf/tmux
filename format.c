@@ -33,11 +33,16 @@
 #include <unistd.h>
 
 #include "tmux.h"
+#ifdef WITH_LUA
+#include "luaif.h"
+#endif
 
 /*
  * Build a list of key-value pairs and use them to expand #{key} entries in a
  * string.
  */
+
+static unsigned int	str_has_scheme(const char *);
 
 struct format_expand_state;
 
@@ -359,6 +364,16 @@ format_job_complete(struct job *job)
 			server_status_client(fj->client);
 		fj->status = 0;
 	}
+}
+
+static unsigned int
+str_has_scheme(const char *s)
+{
+	unsigned int c;
+
+	for (c = 0; s[c] >= 'a' && s[c] <= 'z'; c++)
+		;
+	return (s[c] == ':' ? c : 0);
 }
 
 /* Find a job. */
@@ -1799,6 +1814,17 @@ format_cb_loop_last_flag(struct format_tree *ft)
 	return (xstrdup("0"));
 }
 
+/* Callback for lua_support. */
+static void *
+format_cb_lua_support(__unused struct format_tree *ft)
+{
+#ifdef WITH_LUA
+	return (xstrdup(TMUX_LUA_VERSION));
+#else
+	return (xstrdup(""));
+#endif
+}
+
 /* Callback for mouse_all_flag. */
 static void *
 format_cb_mouse_all_flag(struct format_tree *ft)
@@ -3175,6 +3201,9 @@ static const struct format_table_entry format_table[] = {
 	},
 	{ "loop_last_flag", FORMAT_TABLE_STRING,
 	  format_cb_loop_last_flag
+	},
+	{ "lua_support", FORMAT_TABLE_STRING,
+	  format_cb_lua_support
 	},
 	{ "mouse_all_flag", FORMAT_TABLE_STRING,
 	  format_cb_mouse_all_flag
@@ -5569,7 +5598,26 @@ format_expand1(struct format_expand_state *es, const char *fmt)
 				out = xstrdup("");
 				format_log(es, "#() is disabled");
 			} else {
-				out = format_job_get(es, name);
+				unsigned int	 sch;
+
+				sch = str_has_scheme(name);
+				if (sch > 0) {
+					const char	*cmd;
+
+					cmd = name + sch + 1;
+#ifdef WITH_LUA
+					if (strncmp(name, "lua", sch) == 0)
+						out = luaif_eval_str(cmd, NULL);
+					else
+#endif
+					if (strncmp(name, "sh",   sch) == 0)
+						out = format_job_get(es, cmd);
+					else {
+						format_log(es, "#(): unknown scheme");
+						out = xstrdup("");
+					}
+				} else
+					out = format_job_get(es, name);
 				format_log(es, "#() result: %s", out);
 			}
 			free(name);

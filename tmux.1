@@ -6139,6 +6139,7 @@ The following variables are available, where appropriate:
 .It Li "last_window_index" Ta "" Ta "Index of last window in session"
 .It Li "line" Ta "" Ta "Line number in the list"
 .It Li "loop_last_flag" Ta "" Ta "1 if last window, pane, session, client in the W:, P:, S:, or L: loop"
+.It Li "lua_support" Ta "" Ta "A version string if Lua bindings are compiled in"
 .It Li "mouse_all_flag" Ta "" Ta "Pane mouse all flag"
 .It Li "mouse_any_flag" Ta "" Ta "Pane mouse any flag"
 .It Li "mouse_button_flag" Ta "" Ta "Pane mouse button flag"
@@ -7453,6 +7454,34 @@ specified by
 .Fl t
 or the current pane if omitted) after the command finishes.
 If the command fails, the exit status is also displayed.
+.Tg lua
+.It Xo Ic run-lua
+.Op Fl npF
+.Op Fl c Ar target-client
+.Op Fl t Ar target-pane
+.Op Ar lua-expression
+.Xc
+.D1 Pq alias: Ic lua
+Execute
+.Ar lua-expression .
+.Fl n
+ignores the result,
+.Fl p
+prints it to stdout.
+If
+.Fl F
+is given, the expression
+is expanded using the rules specified in the
+.Sx FORMATS
+section.
+.Fl c
+sets the client where the output is sent to.
+.Fl t
+sets the pane where formats are expanded.
+.Pp
+Ask the
+.Ic lua_support
+varible to check whether Lua bindings are compiled in.
 .Tg wait
 .It Xo Ic wait-for
 .Op Fl L | S | U
@@ -7750,6 +7779,10 @@ has been deleted.
 The pane has been paused (if the
 .Ar pause-after
 flag is set).
+.It Ic %lua-result Ar string
+The result of an evaluation after a
+.Ar run-lua
+command.
 .It Ic %session-changed Ar session-id Ar name
 The client is now attached to the session with ID
 .Ar session-id ,

@@ -35,6 +35,11 @@
 
 #include "tmux.h"
 
+#ifdef WITH_LUA
+#include "luaif.h"
+#endif
+
+
 /*
  * Main server functions.
  */
@@ -311,6 +316,10 @@ server_send_exit(void)
 {
 	struct client	*c, *c1;
 	struct session	*s, *s1;
+
+#ifdef WITH_LUA
+	luaif_finish();
+#endif
 
 	cmd_wait_for_flush();
 
