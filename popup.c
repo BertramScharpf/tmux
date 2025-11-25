@@ -548,6 +548,9 @@ popup_key_cb(struct client *c, void *data, struct key_event *event)
 	    pd->job == NULL) &&
 	    (event->key == '\033' || event->key == ('c'|KEYC_CTRL)))
 		return (1);
+	if (pd->job == NULL && (pd->flags & POPUP_CLOSEANYKEY) &&
+            !KEYC_IS_MOUSE(event->key) && !KEYC_IS_PASTE(event->key))
+		return (1);
 	if (pd->job != NULL) {
 		if (KEYC_IS_MOUSE(event->key)) {
 			/* Must be inside, checked already. */
@@ -634,6 +637,56 @@ popup_job_complete_cb(struct job *job)
 	if ((pd->flags & POPUP_CLOSEEXIT) ||
 	    ((pd->flags & POPUP_CLOSEEXITZERO) && pd->status == 0))
 		server_client_clear_overlay(pd->c);
+}
+
+int
+popup_present(struct client *c)
+{
+	return (c->overlay_draw == popup_draw_cb);
+}
+
+int
+popup_modify(struct client *c, const char *title, const char *style,
+	const char *border_style, enum box_lines lines, int flags)
+{
+	struct popup_data		*pd = c->overlay_data;
+	struct style		sytmp;
+
+	if (title != NULL) {
+		if (pd->title != NULL)
+			free(pd->title);
+		pd->title = xstrdup(title);
+	}
+	if (border_style != NULL) {
+		style_set(&sytmp, &pd->border_cell);
+		if (style_parse(&sytmp, &pd->border_cell, border_style) == 0) {
+			pd->border_cell.fg = sytmp.gc.fg;
+			pd->border_cell.bg = sytmp.gc.bg;
+		}
+	}
+	if (style != NULL) {
+		style_set(&sytmp, &pd->defaults);
+		if (style_parse(&sytmp, &pd->defaults, style) == 0) {
+			pd->defaults.fg = sytmp.gc.fg;
+			pd->defaults.bg = sytmp.gc.bg;
+		}
+	}
+	if (lines != BOX_LINES_DEFAULT) {
+		if (lines == BOX_LINES_NONE && pd->border_lines != lines) {
+			screen_resize(&pd->s, pd->sx, pd->sy, 1);
+			job_resize(pd->job, pd->sx, pd->sy);
+		} else if (pd->border_lines == BOX_LINES_NONE && pd->border_lines != lines) {
+			screen_resize(&pd->s, pd->sx - 2, pd->sy - 2, 1);
+			job_resize(pd->job, pd->sx - 2, pd->sy - 2);
+		}
+		pd->border_lines = lines;
+		tty_resize(&c->tty);
+	}
+	if (flags != -1)
+		pd->flags = flags;
+
+	server_redraw_client(c);
+	return (0);
 }
 
 int

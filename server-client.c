@@ -311,6 +311,8 @@ server_client_create(int fd)
 	evtimer_set(&c->repeat_timer, server_client_repeat_timer, c);
 	evtimer_set(&c->click_timer, server_client_click_timer, c);
 
+	TAILQ_INIT(&c->input_requests);
+
 	TAILQ_INSERT_TAIL(&clients, c, entry);
 	log_debug("new client %p", c);
 	return (c);
@@ -459,6 +461,7 @@ server_client_lost(struct client *c)
 	tty_term_free_list(c->term_caps, c->term_ncaps);
 
 	status_free(c);
+	input_cancel_requests(c);
 
 	free(c->title);
 	free((void *)c->cwd);
@@ -596,7 +599,6 @@ server_client_check_mouse_in_pane(struct window_pane *wp, u_int px, u_int py,
 	sb = options_get_number(wo, "pane-scrollbars");
 	sb_pos = options_get_number(wo, "pane-scrollbars-position");
 	pane_status = options_get_number(wo, "pane-border-status");
-	sb_pos = options_get_number(wo, "pane-scrollbars-position");
 
 	if (window_pane_show_scrollbar(wp, sb)) {
 		sb_w = wp->scrollbar_style.width;
@@ -655,10 +657,8 @@ server_client_check_mouse_in_pane(struct window_pane *wp, u_int px, u_int py,
 			    fwp->xoff + fwp->sx >= px))
 				break;
 		}
-		if (fwp != NULL) {
-			wp = fwp;
+		if (fwp != NULL)
 			return (BORDER);
-		}
 	}
 	return (NOWHERE);
 }
@@ -3354,7 +3354,7 @@ server_client_dispatch(struct imsg *imsg, void *arg)
 			break;
 		server_client_update_latest(c);
 		tty_resize(&c->tty);
-		tty_repeat_requests(&c->tty);
+		tty_repeat_requests(&c->tty, 0);
 		recalculate_sizes();
 		if (c->overlay_resize == NULL)
 			server_client_clear_overlay(c);
@@ -3959,5 +3959,5 @@ server_client_report_theme(struct client *c, enum client_theme theme)
 	 * Request foreground and background colour again. Don't forward 2031 to
 	 * panes until a response is received.
 	 */
-	tty_puts(&c->tty, "\033]10;?\033\\\033]11;?\033\\");
+	tty_repeat_requests(&c->tty, 1);
 }

@@ -59,6 +59,7 @@ static int	tty_keys_device_attributes2(struct tty *, const char *, size_t,
 		    size_t *);
 static int	tty_keys_extended_device_attributes(struct tty *, const char *,
 		    size_t, size_t *);
+static int	tty_keys_palette(struct tty *, const char *, size_t, size_t *);
 
 /* A key tree entry. */
 struct tty_key {
@@ -804,6 +805,17 @@ tty_keys_next(struct tty *tty)
 		goto partial_key;
 	}
 
+	/* Is this a palette response? */
+	switch (tty_keys_palette(tty, buf, len, &size)) {
+	case 0:		/* yes */
+		key = KEYC_UNKNOWN;
+		goto complete_key;
+	case -1:	/* no, or not valid */
+		break;
+	case 1:		/* partial */
+		goto partial_key;
+	}
+
 	/* Is this a mouse key press? */
 	switch (tty_keys_mouse(tty, buf, len, &size, &m)) {
 	case 0:		/* yes */
@@ -937,7 +949,8 @@ partial_key:
 	delay = options_get_number(global_options, "escape-time");
 	if (delay == 0)
 		delay = 1;
-	if ((tty->flags & TTY_ALL_REQUEST_FLAGS) != TTY_ALL_REQUEST_FLAGS) {
+	if ((tty->flags & (TTY_WAITFG|TTY_WAITBG) ||
+	    (tty->flags & TTY_ALL_REQUEST_FLAGS) != TTY_ALL_REQUEST_FLAGS)) {
 		log_debug("%s: increasing delay for active query", c->name);
 		if (delay < 500)
 			delay = 500;
@@ -1686,15 +1699,79 @@ tty_keys_colours(struct tty *tty, const char *buf, size_t len, size_t *size,
 		else
 			log_debug("fg is %s", colour_tostring(n));
 		*fg = n;
-		tty->flags |= TTY_HAVEFG;
+		tty->flags &= ~TTY_WAITFG;
 	} else if (n != -1) {
 		if (c != NULL)
 			log_debug("%s bg is %s", c->name, colour_tostring(n));
 		else
 			log_debug("bg is %s", colour_tostring(n));
 		*bg = n;
-		tty->flags |= TTY_HAVEBG;
+		tty->flags &= ~TTY_WAITBG;
 	}
+
+	return (0);
+}
+
+/* Handle OSC 4 palette colour responses. */
+static int
+tty_keys_palette(struct tty *tty, const char *buf, size_t len, size_t *size)
+{
+	struct client			 *c = tty->client;
+	u_int				  i, start;
+	char				  tmp[128], *endptr;
+	int				  idx;
+	struct input_request_palette_data pd;
+
+	*size = 0;
+
+	/* First three bytes are always \033]4. */
+	if (buf[0] != '\033')
+		return (-1);
+	if (len == 1)
+		return (1);
+	if (buf[1] != ']')
+		return (-1);
+	if (len == 2)
+		return (1);
+	if (buf[2] != '4')
+		return (-1);
+	if (len == 3)
+		return (1);
+	if (buf[3] != ';')
+		return (-1);
+	if (len == 4)
+		return (1);
+
+	/* Parse index. */
+	idx = strtol(buf + 4, &endptr, 10);
+	if (endptr == buf + 4 || *endptr != ';')
+		return (-1);
+	if (idx < 0 || idx > 255)
+		return (-1);
+
+	/* Copy the rest up to \033\ or \007. */
+	start = (endptr - buf) + 1;
+	for (i = start; i < len && i - start < sizeof tmp; i++) {
+		if (buf[i - 1] == '\033' && buf[i] == '\\')
+			break;
+		if (buf[i] == '\007')
+			break;
+		tmp[i - start] = buf[i];
+	}
+	if (i - start == sizeof tmp)
+		return (-1);
+	if (i > 0 && buf[i - 1] == '\033')
+		tmp[i - start - 1] = '\0';
+	else
+		tmp[i - start] = '\0';
+	*size = i + 1;
+
+	/* Work out the colour. */
+	pd.c = colour_parseX11(tmp);
+	if (pd.c == -1)
+		return (0);
+	pd.idx = idx;
+	input_request_reply(c, INPUT_REQUEST_PALETTE, &pd);
 
 	return (0);
 }
